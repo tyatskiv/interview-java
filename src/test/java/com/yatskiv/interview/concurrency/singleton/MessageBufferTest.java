@@ -13,27 +13,27 @@ import org.junit.jupiter.api.Test;
 import org.junit.platform.commons.annotation.Testable;
 
 @Testable
-public class ThreadSafeSingletonTest {
+public class MessageBufferTest {
 
   private static final int N_THREADS = 8;
 
   private final ExecutorService pool = Executors.newFixedThreadPool(N_THREADS);
 
   @Test
-  void getInstance_makeParallelInstantiationOfSingleton_returnOneUniqueThreadSafeSingletonInstance()
+  void getInstance_makeParallelInstantiationOfSingleton_returnOneUniqueInstance()
       throws ExecutionException, InterruptedException {
 
-    List<Future<ThreadSafeSingleton>> instances = new ArrayList<>();
+    List<Future<MessageBuffer>> instances = new ArrayList<>();
 
     for (int i = 0; i < N_THREADS; i++) {
-      instances.add(pool.submit(ThreadSafeSingleton::getInstance));
+      instances.add(pool.submit(MessageBuffer::getInstance));
     }
 
     pool.shutdown();
 
     assertEquals(N_THREADS, instances.size(), "Expected capacity of the pool is " + N_THREADS);
 
-    ThreadSafeSingleton instance = instances.getFirst().get();
+    MessageBuffer instance = instances.getFirst().get();
     assertTrue(
         instances.stream()
             .allMatch(
@@ -45,7 +45,38 @@ public class ThreadSafeSingletonTest {
                   }
                 }),
         "Thread-safe singleton instances must all be equals");
+  }
 
-    instance.printInstanceInfo();
+  @Test
+  void write_successAddMessagesToTheBuffer_noErrors() {
+
+    MessageBuffer buffer = fillBuffer();
+
+    assertEquals(buffer.getMaxBufferSize(), buffer.getBufferSize());
+  }
+
+  @Test
+  void read_successReadAllMessagesFromTheBuffer_noErrors() {
+
+    MessageBuffer buffer = fillBuffer();
+
+    for (int i = buffer.getBufferSize(); i > 0; i--) {
+      System.out.println(buffer.read());
+    }
+
+    assertEquals(0, buffer.getBufferSize());
+  }
+
+  private MessageBuffer fillBuffer() {
+
+    MessageBuffer buffer = MessageBuffer.getInstance();
+
+    buffer.clear();
+
+    for (int i = 0; i < buffer.getMaxBufferSize(); i++) {
+      buffer.write("Message " + i);
+    }
+
+    return buffer;
   }
 }
